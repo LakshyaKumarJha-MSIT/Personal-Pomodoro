@@ -1,0 +1,41 @@
+/* Colors live in variables so we can swap them per mode */
+:root {
+  --bg: #1e1e2e;
+  --text: #cdd6f4;
+  --accent: #89b4fa;     /* blue = focus */
+  --on-accent: #11111b;  /* text color on top of accent-colored buttons */
+}
+body.short { --bg: #1e2e25; --accent: #a6e3a1; }   /* green = short break */
+body.long  { --bg: #2a1e2e; --accent: #cba6f7; }   /* purple = long break */
+
+/* Light theme. "body.light.short" means the body has BOTH classes at once,
+   which is more specific, so it wins over the plain body.light rule */
+body.light       { --bg: #eff1f5; --text: #4c4f69; --accent: #1e66f5; --on-accent: #ffffff; }
+body.light.short { --bg: #e8f5ec; --accent: #2a8a3e; }
+body.light.long  { --bg: #f1eaf9; --accent: #8839ef; }
+
+body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px 0; box-sizing: border-box; background: var(--bg); color: var(--text); transition: background 0.4s; }
+#mode { color: var(--accent); }
+/* Progress ring: the timer text sits in the middle of an SVG circle */
+#ring { position: relative; width: 300px; height: 300px; display: flex; align-items: center; justify-content: center; margin: 10px 0; }
+#ring svg { position: absolute; top: 0; left: 0; transform: rotate(-90deg); }   /* start the ring at the top */
+.ring-track, .ring-progress { fill: none; stroke-width: 10; }
+.ring-track { stroke: var(--text); opacity: 0.15; }
+.ring-progress { stroke: var(--accent); transition: stroke-dashoffset 0.3s linear; }
+#timer { font-size: 4.5rem; font-weight: bold; }
+#sessions { margin-top: 15px; opacity: 0.8; }
+#message { min-height: 1.5rem; margin-top: 10px; color: var(--accent); font-weight: bold; }
+button { padding: 10px 20px; font-size: 1rem; margin: 5px; cursor: pointer; border: none; border-radius: 5px; background: var(--accent); color: var(--on-accent); font-weight: bold; }
+button.small { background: transparent; color: var(--text); border: 1px solid var(--accent); font-size: 0.8rem; padding: 6px 12px; }
+
+#settings { margin-top: 25px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap; justify-content: center; font-size: 0.9rem; }
+#settings input[type="number"] { width: 55px; padding: 5px; border-radius: 5px; border: 1px solid var(--accent); background: transparent; color: var(--text); }
+
+#history { margin-top: 25px; text-align: center; font-size: 0.9rem; }
+#history h3 { margin: 0 0 8px; color: var(--accent); }
+#weekTotal { font-weight: bold; margin-bottom: 8px; }
+#historyList div, #todayList div { opacity: 0.8; margin: 2px 0; }
+#history h3.sub { margin-top: 18px; }
+
+#taskInput { margin-top: 15px; width: 260px; max-width: 80vw; padding: 8px; border-radius: 5px; border: 1px solid var(--accent); background: transparent; color: var(--text); text-align: center; }
+#hint { margin-top: 15px; font-size: 0.8rem; opacity: 0.6; }
