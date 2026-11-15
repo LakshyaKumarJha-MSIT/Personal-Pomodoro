@@ -13,7 +13,7 @@
     body.short { --bg: #1e2e25; --accent: #a6e3a1; }   /* green = short break */
     body.long  { --bg: #2a1e2e; --accent: #cba6f7; }   /* purple = long break */
 
-    body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background: var(--bg); color: var(--text); transition: background 0.4s; }
+    body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px 0; box-sizing: border-box; background: var(--bg); color: var(--text); transition: background 0.4s; }
     #mode { color: var(--accent); }
     #timer { font-size: 5rem; font-weight: bold; margin: 20px 0; }
     #sessions { margin-top: 15px; opacity: 0.8; }
@@ -22,6 +22,11 @@
 
     #settings { margin-top: 25px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap; justify-content: center; font-size: 0.9rem; }
     #settings input[type="number"] { width: 55px; padding: 5px; border-radius: 5px; border: 1px solid var(--accent); background: transparent; color: var(--text); }
+
+    #history { margin-top: 25px; text-align: center; font-size: 0.9rem; }
+    #history h3 { margin: 0 0 8px; color: var(--accent); }
+    #weekTotal { font-weight: bold; margin-bottom: 8px; }
+    #historyList div { opacity: 0.8; margin: 2px 0; }
   </style>
 </head>
 <body>
@@ -44,6 +49,13 @@
     <label><input type="checkbox" id="autoStartInput" onchange="applySettings()"> Auto-start next session</label>
   </div>
 
+  <!-- Phase 3.3: history view -->
+  <div id="history">
+    <h3>History</h3>
+    <div id="weekTotal"></div>
+    <div id="historyList"></div>
+  </div>
+
   <script>
     // ---------- Settings (minutes) ----------
     const settings = {
@@ -60,11 +72,46 @@
       long: 'Long Break',
     };
 
+    // ---------- Storage (localStorage) ----------
+    const SETTINGS_KEY = 'pomodoro-settings';
+    const STATS_KEY = 'pomodoro-stats';
+
+    // localStorage only stores text, so we convert with JSON.stringify / JSON.parse
+    function loadFromStorage(key, fallback) {
+      try {
+        const saved = localStorage.getItem(key);
+        return saved ? JSON.parse(saved) : fallback;
+      } catch (e) {
+        return fallback;   // storage blocked or data broken: use the default
+      }
+    }
+
+    function saveToStorage(key, value) {
+      try {
+        localStorage.setItem(key, JSON.stringify(value));
+      } catch (e) {
+        // If saving fails, the app still works, it just won't remember
+      }
+    }
+
+    // Today's date as "YYYY-MM-DD" using the local time zone
+    // (toISOString() would use UTC and give the wrong day near midnight)
+    function getDateKey(date = new Date()) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    // Copy any saved settings over the defaults, then load saved stats
+    Object.assign(settings, loadFromStorage(SETTINGS_KEY, {}));
+    const stats = loadFromStorage(STATS_KEY, {});   // e.g. { "2026-11-15": 3 }
+
     // ---------- State: everything the app "remembers" ----------
     const state = {
       mode: 'focus',                    // 'focus' | 'short' | 'long'
       timeLeft: settings.focus * 60,    // seconds remaining
-      sessionsCompleted: 0,
+      sessionsCompleted: stats[getDateKey()] || 0,   // today's count, survives refresh
       timerId: null,
       endTime: 0,                       // real clock time (ms) when the timer should hit 0
     };
@@ -135,7 +182,13 @@
       pauseTimer();
       const finishedMode = state.mode;
 
-      if (finishedMode === 'focus') state.sessionsCompleted++;
+      if (finishedMode === 'focus') {
+        const today = getDateKey();
+        stats[today] = (stats[today] || 0) + 1;
+        state.sessionsCompleted = stats[today];
+        saveToStorage(STATS_KEY, stats);
+        renderHistory();
+      }
 
       setMode(getNextMode());   // switch first, because reset clears the message
 
@@ -191,6 +244,8 @@
       document.getElementById('shortInput').value = settings.short;
       document.getElementById('longInput').value = settings.long;
 
+      saveToStorage(SETTINGS_KEY, settings);   // Phase 3.1: remember for next visit
+
       // If the timer isn't running, update the current countdown to the new length
       if (!state.timerId) {
         state.timeLeft = settings[state.mode] * 60;
@@ -198,6 +253,39 @@
       }
     }
 
+    // ---------- History view ----------
+    function renderHistory() {
+      const list = document.getElementById('historyList');
+      list.innerHTML = '';
+      let weekTotal = 0;
+
+      // Go back 7 days, starting from today
+      for (let i = 0; i < 7; i++) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const count = stats[getDateKey(date)] || 0;
+        weekTotal += count;
+
+        const label = i === 0
+          ? 'Today'
+          : date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+
+        const row = document.createElement('div');
+        row.textContent = `${label}: ${count}`;
+        list.appendChild(row);
+      }
+
+      document.getElementById('weekTotal').textContent = `Last 7 days: ${weekTotal} sessions`;
+    }
+
+    // ---------- Start up ----------
+    // Put the saved settings into the input boxes
+    document.getElementById('focusInput').value = settings.focus;
+    document.getElementById('shortInput').value = settings.short;
+    document.getElementById('longInput').value = settings.long;
+    document.getElementById('autoStartInput').checked = settings.autoStart;
+
+    renderHistory();
     render();   // draw the page for the first time
   </script>
 </body>
