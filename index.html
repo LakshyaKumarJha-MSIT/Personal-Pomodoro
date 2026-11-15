@@ -8,17 +8,31 @@
     :root {
       --bg: #1e1e2e;
       --text: #cdd6f4;
-      --accent: #89b4fa;   /* blue = focus */
+      --accent: #89b4fa;     /* blue = focus */
+      --on-accent: #11111b;  /* text color on top of accent-colored buttons */
     }
     body.short { --bg: #1e2e25; --accent: #a6e3a1; }   /* green = short break */
     body.long  { --bg: #2a1e2e; --accent: #cba6f7; }   /* purple = long break */
 
+    /* Light theme. "body.light.short" means the body has BOTH classes at once,
+       which is more specific, so it wins over the plain body.light rule */
+    body.light       { --bg: #eff1f5; --text: #4c4f69; --accent: #1e66f5; --on-accent: #ffffff; }
+    body.light.short { --bg: #e8f5ec; --accent: #2a8a3e; }
+    body.light.long  { --bg: #f1eaf9; --accent: #8839ef; }
+
     body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px 0; box-sizing: border-box; background: var(--bg); color: var(--text); transition: background 0.4s; }
     #mode { color: var(--accent); }
-    #timer { font-size: 5rem; font-weight: bold; margin: 20px 0; }
+    /* Progress ring: the timer text sits in the middle of an SVG circle */
+    #ring { position: relative; width: 300px; height: 300px; display: flex; align-items: center; justify-content: center; margin: 10px 0; }
+    #ring svg { position: absolute; top: 0; left: 0; transform: rotate(-90deg); }   /* start the ring at the top */
+    .ring-track, .ring-progress { fill: none; stroke-width: 10; }
+    .ring-track { stroke: var(--text); opacity: 0.15; }
+    .ring-progress { stroke: var(--accent); transition: stroke-dashoffset 0.3s linear; }
+    #timer { font-size: 4.5rem; font-weight: bold; }
     #sessions { margin-top: 15px; opacity: 0.8; }
     #message { min-height: 1.5rem; margin-top: 10px; color: var(--accent); font-weight: bold; }
-    button { padding: 10px 20px; font-size: 1rem; margin: 5px; cursor: pointer; border: none; border-radius: 5px; background: var(--accent); color: #11111b; font-weight: bold; }
+    button { padding: 10px 20px; font-size: 1rem; margin: 5px; cursor: pointer; border: none; border-radius: 5px; background: var(--accent); color: var(--on-accent); font-weight: bold; }
+    button.small { background: transparent; color: var(--text); border: 1px solid var(--accent); font-size: 0.8rem; padding: 6px 12px; }
 
     #settings { margin-top: 25px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap; justify-content: center; font-size: 0.9rem; }
     #settings input[type="number"] { width: 55px; padding: 5px; border-radius: 5px; border: 1px solid var(--accent); background: transparent; color: var(--text); }
@@ -26,20 +40,36 @@
     #history { margin-top: 25px; text-align: center; font-size: 0.9rem; }
     #history h3 { margin: 0 0 8px; color: var(--accent); }
     #weekTotal { font-weight: bold; margin-bottom: 8px; }
-    #historyList div { opacity: 0.8; margin: 2px 0; }
+    #historyList div, #todayList div { opacity: 0.8; margin: 2px 0; }
+    #history h3.sub { margin-top: 18px; }
+
+    #taskInput { margin-top: 15px; width: 260px; max-width: 80vw; padding: 8px; border-radius: 5px; border: 1px solid var(--accent); background: transparent; color: var(--text); text-align: center; }
+    #hint { margin-top: 15px; font-size: 0.8rem; opacity: 0.6; }
   </style>
 </head>
 <body>
   <h2 id="mode">Focus Time</h2>
-  <div id="timer">25:00</div>
+
+  <!-- Phase 4.1: progress ring (two circles: a faint track and the colored progress) -->
+  <div id="ring">
+    <svg width="300" height="300" viewBox="0 0 300 300">
+      <circle class="ring-track" cx="150" cy="150" r="130"></circle>
+      <circle class="ring-progress" id="ringProgress" cx="150" cy="150" r="130"></circle>
+    </svg>
+    <div id="timer">25:00</div>
+  </div>
   <div>
     <button onclick="startTimer()">Start</button>
     <button onclick="pauseTimer()">Pause</button>
     <button onclick="resetTimer()">Reset</button>
     <button onclick="switchMode()">Switch Mode</button>
   </div>
+  <!-- Phase 4.4: task label -->
+  <input type="text" id="taskInput" placeholder="What are you working on?" maxlength="60" oninput="saveTask()">
+
   <div id="sessions">Sessions completed: 0</div>
   <div id="message"></div>
+  <div id="hint">Shortcuts: Space = start/pause, R = reset, S = switch mode</div>
 
   <!-- Phase 2.3 and 2.4: settings -->
   <div id="settings">
@@ -47,6 +77,7 @@
     <label>Short break <input type="number" id="shortInput" value="5" min="1" max="180" onchange="applySettings()"></label>
     <label>Long break <input type="number" id="longInput" value="15" min="1" max="180" onchange="applySettings()"></label>
     <label><input type="checkbox" id="autoStartInput" onchange="applySettings()"> Auto-start next session</label>
+    <button class="small" id="themeButton" onclick="toggleTheme()">Light mode</button>
   </div>
 
   <!-- Phase 3.3: history view -->
@@ -54,6 +85,8 @@
     <h3>History</h3>
     <div id="weekTotal"></div>
     <div id="historyList"></div>
+    <h3 class="sub">Today's sessions</h3>
+    <div id="todayList"></div>
   </div>
 
   <script>
@@ -63,6 +96,8 @@
       short: 5,
       long: 15,
       autoStart: false,
+      theme: 'dark',   // 'dark' | 'light'
+      task: '',        // what you're working on (the task label)
     };
     const SESSIONS_BEFORE_LONG_BREAK = 4;
 
@@ -72,9 +107,14 @@
       long: 'Long Break',
     };
 
+    // Ring math: the distance around a circle is 2 * pi * radius
+    const RING_RADIUS = 130;
+    const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+
     // ---------- Storage (localStorage) ----------
     const SETTINGS_KEY = 'pomodoro-settings';
     const STATS_KEY = 'pomodoro-stats';
+    const LOG_KEY = 'pomodoro-log';
 
     // localStorage only stores text, so we convert with JSON.stringify / JSON.parse
     function loadFromStorage(key, fallback) {
@@ -106,6 +146,7 @@
     // Copy any saved settings over the defaults, then load saved stats
     Object.assign(settings, loadFromStorage(SETTINGS_KEY, {}));
     const stats = loadFromStorage(STATS_KEY, {});   // e.g. { "2026-11-15": 3 }
+    const sessionLog = loadFromStorage(LOG_KEY, []);   // e.g. [{ date, time, task, minutes }]
 
     // ---------- State: everything the app "remembers" ----------
     const state = {
@@ -130,6 +171,15 @@
       // Colors: the body class decides which set of CSS variables applies
       document.body.classList.remove('short', 'long');
       if (state.mode !== 'focus') document.body.classList.add(state.mode);
+
+      // Phase 4.5: light or dark theme
+      document.body.classList.toggle('light', settings.theme === 'light');
+      document.getElementById('themeButton').textContent = settings.theme === 'light' ? 'Dark mode' : 'Light mode';
+
+      // Phase 4.1: progress ring. dashoffset = how much of the ring is "hidden"
+      const totalSeconds = settings[state.mode] * 60;
+      const fractionDone = Math.min(1, Math.max(0, 1 - state.timeLeft / totalSeconds));
+      document.getElementById('ringProgress').style.strokeDashoffset = RING_CIRCUMFERENCE * fractionDone;
     }
 
     function showMessage(text) {
@@ -187,17 +237,26 @@
         stats[today] = (stats[today] || 0) + 1;
         state.sessionsCompleted = stats[today];
         saveToStorage(STATS_KEY, stats);
+
+        // Phase 4.4: also log this session with its task label
+        sessionLog.push({ date: today, time: Date.now(), task: settings.task, minutes: settings.focus });
+        if (sessionLog.length > 500) sessionLog.splice(0, sessionLog.length - 500);   // keep the log from growing forever
+        saveToStorage(LOG_KEY, sessionLog);
+
         renderHistory();
       }
 
       setMode(getNextMode());   // switch first, because reset clears the message
 
+      let text;
       if (finishedMode === 'focus') {
         const breakType = state.mode === 'long' ? 'long break' : 'break';
-        showMessage(`Focus session ${state.sessionsCompleted} complete! Time for a ${breakType}.`);
+        text = `Focus session ${state.sessionsCompleted} complete! Time for a ${breakType}.`;
       } else {
-        showMessage('Break is over! Back to work.');
+        text = 'Break is over! Back to work.';
       }
+      showMessage(text);
+      sendNotification(text);
       playBeep();
 
       if (settings.autoStart) startTimer(false);
@@ -205,7 +264,10 @@
 
     function startTimer(clearMessage = true) {
       if (state.timerId) return;
-      if (clearMessage) showMessage('');
+      if (clearMessage) {
+        showMessage('');
+        requestNotificationPermission();   // only on a manual start: browsers need a click for this
+      }
       state.endTime = Date.now() + state.timeLeft * 1000;
       state.timerId = setInterval(tick, 250);
     }
@@ -225,6 +287,64 @@
       state.timeLeft = settings[state.mode] * 60;
       render();
     }
+
+    // ---------- Notifications (Phase 4.3) ----------
+    function requestNotificationPermission() {
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();   // the browser shows an "Allow?" popup
+      }
+    }
+
+    function sendNotification(text) {
+      if (!document.hidden) return;   // you're already looking at the page, no need
+      if (!('Notification' in window) || Notification.permission !== 'granted') return;
+      try {
+        new Notification('Pomodoro Timer', { body: text });
+      } catch (e) {
+        // Some browsers (e.g. mobile Chrome) don't allow this, so skip quietly
+      }
+    }
+
+    // ---------- Small actions: toggle, theme, task label ----------
+    function toggleTimer() {
+      if (state.timerId) pauseTimer();
+      else startTimer();
+    }
+
+    function toggleTheme() {
+      settings.theme = settings.theme === 'light' ? 'dark' : 'light';
+      saveToStorage(SETTINGS_KEY, settings);
+      render();
+    }
+
+    function saveTask() {
+      settings.task = document.getElementById('taskInput').value.trim();
+      saveToStorage(SETTINGS_KEY, settings);
+    }
+
+    // ---------- Keyboard shortcuts (Phase 4.2) ----------
+    document.addEventListener('keydown', (event) => {
+      const tag = event.target.tagName;
+      // Don't steal keys while typing, or from a focused button/checkbox
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'BUTTON') return;
+      // Leave browser shortcuts alone (like Ctrl+R to refresh)
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+
+      if (event.code === 'Space') {
+        event.preventDefault();   // stops the page from scrolling down
+        toggleTimer();
+      } else if (event.key.toLowerCase() === 'r') {
+        resetTimer();
+      } else if (event.key.toLowerCase() === 's') {
+        switchMode();
+      }
+    });
+
+    // After a mouse click, buttons normally keep keyboard focus, which would make
+    // Space "click" that button again. This stops buttons from taking focus on click.
+    document.querySelectorAll('button').forEach((button) => {
+      button.addEventListener('mousedown', (event) => event.preventDefault());
+    });
 
     // ---------- Settings handling ----------
     // Reads a number from an input; if it is invalid, keeps the old value
@@ -276,6 +396,21 @@
       }
 
       document.getElementById('weekTotal').textContent = `Last 7 days: ${weekTotal} sessions`;
+
+      // Today's individual sessions, with their task labels
+      const todayList = document.getElementById('todayList');
+      todayList.innerHTML = '';
+      const todaySessions = sessionLog.filter((entry) => entry.date === getDateKey());
+
+      if (todaySessions.length === 0) {
+        todayList.textContent = 'No sessions yet today';
+      }
+      for (const entry of todaySessions) {
+        const time = new Date(entry.time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        const row = document.createElement('div');
+        row.textContent = `${time} - ${entry.task || '(no label)'} (${entry.minutes} min)`;
+        todayList.appendChild(row);
+      }
     }
 
     // ---------- Start up ----------
@@ -284,6 +419,10 @@
     document.getElementById('shortInput').value = settings.short;
     document.getElementById('longInput').value = settings.long;
     document.getElementById('autoStartInput').checked = settings.autoStart;
+    document.getElementById('taskInput').value = settings.task;
+
+    // Tell the ring how long its full circle is (it starts out "full")
+    document.getElementById('ringProgress').style.strokeDasharray = RING_CIRCUMFERENCE;
 
     renderHistory();
     render();   // draw the page for the first time
