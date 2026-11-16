@@ -2,13 +2,18 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <!-- Makes the page scale properly on phones -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Pomodoro Timer</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <!-- Only shown when the page is opened with ?dev on the end of the address -->
+  <div id="devBanner" hidden>DEV MODE: 1 minute = 1 second. Data is saved separately from your real data.</div>
+
   <h2 id="mode">Focus Time</h2>
 
-  <!-- Phase 4.1: progress ring (two circles: a faint track and the colored progress) -->
+  <!-- Progress ring (two circles: a faint track and the colored progress) -->
   <div id="ring">
     <svg width="300" height="300" viewBox="0 0 300 300">
       <circle class="ring-track" cx="150" cy="150" r="130"></circle>
@@ -17,28 +22,37 @@
     <div id="timer">25:00</div>
   </div>
   <div>
-    <button onclick="startTimer()">Start</button>
-    <button onclick="pauseTimer()">Pause</button>
-    <button onclick="resetTimer()">Reset</button>
-    <button onclick="switchMode()">Switch Mode</button>
+    <!-- Clicks are connected to the code in js/main.js, using these ids -->
+    <button id="startButton">Start</button>
+    <button id="pauseButton">Pause</button>
+    <button id="resetButton">Reset</button>
+    <button id="switchButton">Switch Mode</button>
   </div>
-  <!-- Phase 4.4: task label -->
-  <input type="text" id="taskInput" placeholder="What are you working on?" maxlength="60" oninput="saveTask()">
+  <!-- Task label -->
+  <input type="text" id="taskInput" placeholder="What are you working on?" maxlength="60">
 
   <div id="sessions">Sessions completed: 0</div>
   <div id="message"></div>
   <div id="hint">Shortcuts: Space = start/pause, R = reset, S = switch mode</div>
 
-  <!-- Phase 2.3 and 2.4: settings -->
+  <!-- Settings -->
   <div id="settings">
-    <label>Focus (min) <input type="number" id="focusInput" value="25" min="1" max="180" onchange="applySettings()"></label>
-    <label>Short break <input type="number" id="shortInput" value="5" min="1" max="180" onchange="applySettings()"></label>
-    <label>Long break <input type="number" id="longInput" value="15" min="1" max="180" onchange="applySettings()"></label>
-    <label><input type="checkbox" id="autoStartInput" onchange="applySettings()"> Auto-start next session</label>
-    <button class="small" id="themeButton" onclick="toggleTheme()">Light mode</button>
+    <label>Focus (min) <input type="number" id="focusInput" value="25" min="1" max="180"></label>
+    <label>Short break <input type="number" id="shortInput" value="5" min="1" max="180"></label>
+    <label>Long break <input type="number" id="longInput" value="15" min="1" max="180"></label>
+    <label><input type="checkbox" id="autoStartInput"> Auto-start next session</label>
+    <button class="small" id="themeButton">Light mode</button>
   </div>
 
-  <!-- Phase 3.3: history view -->
+  <!-- Backup: save your data to a file, or load it back from one -->
+  <div id="data">
+    <button class="small" id="exportButton">Export backup</button>
+    <button class="small" id="importButton">Import backup</button>
+    <input type="file" id="importInput" accept="application/json,.json" hidden>
+    <div id="dataMessage" role="status"></div>
+  </div>
+
+  <!-- History view -->
   <div id="history">
     <h3>History</h3>
     <div id="weekTotal"></div>
@@ -47,6 +61,7 @@
     <div id="todayList"></div>
   </div>
 
-  <script src="app.js"></script>
+  <!-- type="module" lets js/main.js import the other files -->
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>
