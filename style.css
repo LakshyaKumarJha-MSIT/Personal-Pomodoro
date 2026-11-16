@@ -39,3 +39,10 @@ button.small { background: transparent; color: var(--text); border: 1px solid va
 
 #taskInput { margin-top: 15px; width: 260px; max-width: 80vw; padding: 8px; border-radius: 5px; border: 1px solid var(--accent); background: transparent; color: var(--text); text-align: center; }
 #hint { margin-top: 15px; font-size: 0.8rem; opacity: 0.6; }
+
+/* Backup buttons and their message line */
+#data { margin-top: 15px; text-align: center; padding: 0 16px; }
+#dataMessage { min-height: 1.2rem; margin-top: 6px; font-size: 0.85rem; opacity: 0.85; }
+
+/* Dev mode banner: a bar across the top so you can't forget it's on */
+#devBanner { position: fixed; top: 0; left: 0; right: 0; padding: 6px 10px; text-align: center; font-size: 0.8rem; font-weight: bold; background: var(--accent); color: var(--on-accent); }
